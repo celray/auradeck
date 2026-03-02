@@ -22,6 +22,8 @@
     }
   },
   "bundle": {
+    "active": true,
+    "targets": "all",
     "icon": [
       "icons/icon-32x32.png",
       "icons/icon-64x64.png",
@@ -29,6 +31,11 @@
       "icons/icon-256x256.png",
       "icons/icon-512x512.png",
       "icons/icon.png"
-    ]
+    ],
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
   }
 }
