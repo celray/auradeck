@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=AuraDeck
+Comment=Lightweight presentation viewer
+Exec=auradeck %f
+Icon=auradeck
+Terminal=false
+Type=Application
+Categories=Office;Presentation;
+MimeType=application/x-auradeck-slides;

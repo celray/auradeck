@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slide - Title</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0f0c29; }
+  .slide {
+    width: 100vw; height: 100vh;
+    overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif;
+    color: #fff;
+  }
+  .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+  .content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 5%; }
+  h1 { font-size: 5vmin; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 2vmin; }
+  h1 span { color: #e94560; }
+  p.subtitle { font-size: 2.4vmin; color: #aaa; max-width: 60%; line-height: 1.6; }
+  .badge { display: inline-block; margin-top: 3vmin; padding: 1vmin 3vmin; border: 2px solid #e94560; border-radius: 9999px; font-size: 1.8vmin; color: #e94560; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0; animation: fadeUp 0.8s 0.6s forwards; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  h1 { opacity: 0; animation: fadeUp 0.8s 0.1s forwards; }
+  p.subtitle { opacity: 0; animation: fadeUp 0.8s 0.35s forwards; }
+</style>
+</head>
+<body>
+<div class="slide">
+  <img class="bg" src="./images/hero-bg.svg" alt="background">
+  <div class="content">
+    <h1>Introducing <span>AuraDeck</span></h1>
+    <p class="subtitle">A next-generation presentation engine built on self-contained, portable HTML slides.</p>
+    <div class="badge">Product Launch 2026</div>
+  </div>
+</div>
+</body>
+</html>

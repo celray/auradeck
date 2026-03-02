@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AuraDeck — Presenter</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a1a; font-family: 'Segoe UI', system-ui, sans-serif; color: #ccd; }
+
+.presenter {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 12px;
+  padding: 12px;
+  height: 100%;
+}
+
+.current-slide {
+  grid-row: 1;
+  grid-column: 1;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  border: 2px solid #e94560;
+}
+
+.current-slide iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  pointer-events: none;
+}
+
+.current-label {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  background: rgba(233, 69, 96, 0.85);
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 2;
+}
+
+.sidebar {
+  grid-row: 1;
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.next-slide {
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  aspect-ratio: 16/9;
+  flex-shrink: 0;
+  border: 1px solid #2a3a5e;
+}
+
+.next-slide iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  pointer-events: none;
+}
+
+.next-label {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  background: rgba(42, 58, 94, 0.85);
+  color: #8899aa;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  z-index: 2;
+}
+
+.notes-panel {
+  flex: 1;
+  background: #12192e;
+  border: 1px solid #2a3a5e;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.notes-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #8899aa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.notes-text {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #dde;
+  white-space: pre-wrap;
+}
+
+.notes-text.empty {
+  color: #556;
+  font-style: italic;
+}
+
+.bottom-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #0f1a30;
+  border-radius: 8px;
+  border: 1px solid #2a3a5e;
+}
+
+.slide-counter {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #e94560;
+}
+
+.timer {
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #4ade80;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.controls button {
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ccd;
+  background: #1a2744;
+  border: 1px solid #2a3a5e;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.controls button:hover { background: #243556; color: #fff; }
+
+.hint {
+  font-size: 0.7rem;
+  color: #556;
+}
+</style>
+</head>
+<body tabindex="-1">
+<div class="presenter">
+  <div class="current-slide">
+    <div class="current-label">Current Slide</div>
+    <iframe id="current-frame"></iframe>
+  </div>
+
+  <div class="sidebar">
+    <div class="next-slide">
+      <div class="next-label">Up Next</div>
+      <iframe id="next-frame"></iframe>
+    </div>
+    <div class="notes-panel">
+      <div class="notes-label">Speaker Notes</div>
+      <div class="notes-text empty" id="notes">No notes for this slide.</div>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <div class="slide-counter" id="counter">1 / 1</div>
+    <div class="controls">
+      <button id="btn-prev" title="Previous (Left Arrow)">Prev</button>
+      <button id="btn-next" title="Next (Right Arrow)">Next</button>
+      <span class="hint">F: fullscreen &bull; Esc: exit</span>
+    </div>
+    <div class="timer" id="timer">00:00:00</div>
+  </div>
+</div>
+
+<script>
+const { invoke } = window.__TAURI__.core;
+const { emit } = window.__TAURI__.event;
+const { getCurrentWindow } = window.__TAURI__.window;
+
+const currentFrame = document.getElementById("current-frame");
+const nextFrame = document.getElementById("next-frame");
+const notesEl = document.getElementById("notes");
+const counterEl = document.getElementById("counter");
+const timerEl = document.getElementById("timer");
+
+let currentIndex = 0;
+let totalSlides = 0;
+let startTime = Date.now();
+
+// Timer
+setInterval(() => {
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const h = String(Math.floor(elapsed / 3600)).padStart(2, "0");
+  const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
+  const s = String(elapsed % 60).padStart(2, "0");
+  timerEl.textContent = `${h}:${m}:${s}`;
+}, 1000);
+
+async function init() {
+  totalSlides = await invoke("get_total_slides");
+  const startSlide = parseInt(new URLSearchParams(window.location.search).get("slide") || "0", 10);
+  await goToSlide(startSlide);
+}
+
+async function goToSlide(index) {
+  if (index < 0 || index >= totalSlides) return;
+  currentIndex = index;
+
+  // Current slide
+  const html = await invoke("get_slide", { index });
+  currentFrame.srcdoc = html;
+
+  // Next slide
+  if (index + 1 < totalSlides) {
+    const nextHtml = await invoke("get_slide", { index: index + 1 });
+    nextFrame.srcdoc = nextHtml;
+  } else {
+    nextFrame.srcdoc = '<html><body style="background:#0a0a1a;color:#556;display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p>End of presentation</p></body></html>';
+  }
+
+  // Notes
+  const info = await invoke("get_slide_info", { index });
+  if (info.notes && info.notes.trim()) {
+    notesEl.textContent = info.notes;
+    notesEl.className = "notes-text";
+  } else {
+    notesEl.textContent = "No notes for this slide.";
+    notesEl.className = "notes-text empty";
+  }
+
+  counterEl.textContent = `${index + 1} / ${totalSlides}`;
+
+  // Tell audience window to show this slide
+  emit("presenter-cmd", { cmd: "slide", index });
+
+  // Keep focus on body so arrow keys always work
+  document.body.focus();
+}
+
+function next() { goToSlide(currentIndex + 1); }
+function prev() { goToSlide(currentIndex - 1); }
+
+document.getElementById("btn-next").addEventListener("click", next);
+document.getElementById("btn-prev").addEventListener("click", prev);
+
+document.addEventListener("keydown", async (e) => {
+  if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " ") {
+    e.preventDefault(); next();
+  } else if (e.key === "ArrowLeft" || e.key === "ArrowUp" && !e.ctrlKey) {
+    e.preventDefault(); prev();
+  } else if (e.key === "Home") {
+    e.preventDefault(); goToSlide(0);
+  } else if (e.key === "End") {
+    e.preventDefault(); goToSlide(totalSlides - 1);
+  } else if (e.key === "f" || e.key === "F") {
+    e.preventDefault();
+    const win = getCurrentWindow();
+    win.isFullscreen().then((fs) => win.setFullscreen(!fs));
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    const win = getCurrentWindow();
+    win.isFullscreen().then((fs) => {
+      if (fs) {
+        win.setFullscreen(false);
+      } else {
+        emit("presenter-cmd", { cmd: "exit" });
+        win.close();
+      }
+    });
+  }
+});
+
+init();
+</script>
+</body>
+</html>

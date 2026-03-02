@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300">
+  <rect width="600" height="300" fill="#1a1a2e" rx="12"/>
+  <circle cx="150" cy="120" r="45" fill="#16213e" stroke="#533483" stroke-width="2"/>
+  <circle cx="150" cy="105" r="18" fill="#e94560"/>
+  <path d="M115,155 Q150,135 185,155" fill="#e94560"/>
+  <text x="150" y="200" text-anchor="middle" fill="#ccc" font-family="sans-serif" font-size="13">Alice</text>
+  <circle cx="300" cy="120" r="45" fill="#16213e" stroke="#533483" stroke-width="2"/>
+  <circle cx="300" cy="105" r="18" fill="#0f3460"/>
+  <path d="M265,155 Q300,135 335,155" fill="#0f3460"/>
+  <text x="300" y="200" text-anchor="middle" fill="#ccc" font-family="sans-serif" font-size="13">Bob</text>
+  <circle cx="450" cy="120" r="45" fill="#16213e" stroke="#533483" stroke-width="2"/>
+  <circle cx="450" cy="105" r="18" fill="#533483"/>
+  <path d="M415,155 Q450,135 485,155" fill="#533483"/>
+  <text x="450" y="200" text-anchor="middle" fill="#ccc" font-family="sans-serif" font-size="13">Carol</text>
+  <text x="300" y="270" text-anchor="middle" fill="#666" font-family="sans-serif" font-size="14">Core Engineering Team</text>
+</svg>

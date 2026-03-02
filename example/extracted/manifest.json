@@ -1,0 +1,77 @@
+{
+  "version": "1.0.0",
+  "title": "Introducing AuraDeck",
+  "author": {
+    "name": "Celray James",
+    "email": "celray@auradeck.dev",
+    "url": "https://github.com/celray"
+  },
+  "created": "2026-03-02T00:00:00Z",
+  "modified": "2026-03-02T18:51:56.896734417+00:00",
+  "description": "Product launch deck for AuraDeck, a next-generation portable presentation engine.",
+  "tags": [
+    "product",
+    "launch",
+    "demo"
+  ],
+  "aspect_ratio": "auto",
+  "slides": [
+    {
+      "index": 0,
+      "file": "r7x2ka9m.html",
+      "title": "Title",
+      "notes": "Opening slide. Introduce the product name and tagline.",
+      "transition": "slide-left"
+    },
+    {
+      "index": 1,
+      "file": "f4np8w2q.html",
+      "title": "Overview",
+      "notes": "Explain the three-stage pipeline: Import, Process, Present.",
+      "transition": "slide-left"
+    },
+    {
+      "index": 2,
+      "file": "j6t3vc8y.html",
+      "title": "Core Features",
+      "notes": "Highlight speed, modularity, and offline capability.",
+      "transition": "slide-left"
+    },
+    {
+      "index": 3,
+      "file": "m1bg5d7h.html",
+      "title": "Traction & Adoption",
+      "notes": "Show growth metrics. Counters animate on load.",
+      "transition": "slide-left"
+    },
+    {
+      "index": 4,
+      "file": "q9z0le4s.html",
+      "title": "Meet the Team",
+      "notes": "Introduce the core engineering team.",
+      "transition": "slide-left"
+    },
+    {
+      "index": 5,
+      "file": "w3e6yr1k.html",
+      "title": "Closing & CTA",
+      "notes": "Call to action: get started or view on GitHub.",
+      "transition": "slide-left"
+    }
+  ],
+  "theme": {
+    "background": "#0f0c29",
+    "foreground": "#ffffff",
+    "accent": "#e94560",
+    "secondary": "#533483"
+  },
+  "images": [
+    "images/hero-bg.svg",
+    "images/overview-graphic.svg",
+    "images/feature-speed.svg",
+    "images/feature-modular.svg",
+    "images/feature-offline.svg",
+    "images/chart-placeholder.svg",
+    "images/team-photo.svg"
+  ]
+}

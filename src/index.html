@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuraDeck</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="vendor/codemirror/codemirror.min.css">
+  <link rel="stylesheet" href="vendor/codemirror/addon/hint/show-hint.min.css">
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body tabindex="-1">
+  <!-- Viewer -->
+  <div id="viewport" class="hidden">
+    <iframe id="frame-a" sandbox="allow-scripts"></iframe>
+    <iframe id="frame-b" sandbox="allow-scripts"></iframe>
+    <div id="counter"></div>
+  </div>
+
+  <!-- Editor -->
+  <div id="editor" class="hidden">
+    <!-- Ribbon -->
+    <div class="ribbon">
+      <div class="ribbon-tabs">
+        <button class="ribbon-tab" data-tab="file">File</button>
+        <button class="ribbon-tab active" data-tab="home">Home</button>
+        <button class="ribbon-tab" data-tab="insert">Insert</button>
+        <button class="ribbon-tab" data-tab="design">Design</button>
+        <button class="ribbon-tab" data-tab="transitions">Transitions</button>
+        <button class="ribbon-tab" data-tab="view">View</button>
+        <button class="ribbon-present-btn" id="btn-present-always" title="Present (F5)">Present</button>
+      </div>
+      <div class="ribbon-content">
+        <!-- File Tab -->
+        <div class="ribbon-panel" data-tab="file">
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">New</div>
+            <button class="ribbon-btn" id="btn-file-new" title="New Presentation">New</button>
+          </div>
+          <div class="ribbon-separator"></div>
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">Open</div>
+            <button class="ribbon-btn" id="btn-file-open-adsl" title="Open .adsl File">Open .adsl</button>
+            <button class="ribbon-btn" id="btn-file-open-folder" title="Open Folder">Open Folder</button>
+          </div>
+          <div class="ribbon-separator"></div>
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">Save</div>
+            <button class="ribbon-btn" id="btn-file-save-adsl" title="Save as .adsl">Save as .adsl</button>
+            <button class="ribbon-btn" id="btn-file-export-folder" title="Export to Folder">Export to Folder</button>
+          </div>
+          <div class="ribbon-separator"></div>
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">Export</div>
+            <button class="ribbon-btn" id="btn-file-export-pdf" title="Export as PDF">PDF</button>
+            <button class="ribbon-btn" id="btn-file-export-pptx" title="Export as PowerPoint">PPTX</button>
+          </div>
+        </div>
+
+        <!-- Home Tab -->
+        <div class="ribbon-panel active" data-tab="home">
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">Clipboard</div>
+            <button class="ribbon-btn" id="btn-cut" title="Cut (Ctrl+X)">Cut</button>
+            <button class="ribbon-btn" id="btn-copy" title="Copy (Ctrl+C)">Copy</button>
+            <button class="ribbon-btn" id="btn-paste" title="Paste (Ctrl+V)">Paste</button>
+          </div>
+          <div class="ribbon-separator"></div>
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">Text</div>
+            <button class="ribbon-btn format-btn" id="btn-bold" title="Bold"><b>B</b></button>
+            <button class="ribbon-btn format-btn" id="btn-italic" title="Italic"><i>I</i></button>
+            <button class="ribbon-btn format-btn" id="btn-underline" title="Underline"><u>U</u></button>
+            <select id="font-size" class="ribbon-select" title="Font Size">
+              <option value="1.5vmin">Small</option>
+              <option value="2vmin" selected>Normal</option>
+              <option value="3vmin">Large</option>
+              <option value="4vmin">X-Large</option>
+              <option value="5vmin">Heading</option>
+            </select>
+            <input type="color" id="text-color" class="ribbon-color" value="#ffffff" title="Text Color">
+          </div>
+          <div class="ribbon-separator"></div>
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">Slide</div>
+            <div class="ribbon-btn-group">
+              <button class="ribbon-btn" id="btn-new-slide" title="New Slide (Ctrl+N)">+ New Slide</button>
+              <button class="ribbon-btn" id="btn-duplicate" title="Duplicate Slide (Ctrl+D)">Duplicate</button>
+              <button class="ribbon-btn danger" id="btn-delete-slide" title="Delete Slide">Delete</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Insert Tab -->
+        <div class="ribbon-panel" data-tab="insert">
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">Media</div>
+            <button class="ribbon-btn" id="btn-insert-image" title="Insert Image">Image</button>
+          </div>
+          <div class="ribbon-separator"></div>
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">Content</div>
+            <button class="ribbon-btn" id="btn-insert-textbox" title="Insert Text Box">Text Box</button>
+            <button class="ribbon-btn" id="btn-insert-list" title="Insert List">List</button>
+            <button class="ribbon-btn" id="btn-insert-link" title="Insert Link">Link</button>
+          </div>
+        </div>
+
+        <!-- Design Tab -->
+        <div class="ribbon-panel" data-tab="design">
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">Theme Colors</div>
+            <label class="ribbon-color-label">BG <input type="color" id="theme-bg" value="#0f0c29"></label>
+            <label class="ribbon-color-label">FG <input type="color" id="theme-fg" value="#ffffff"></label>
+            <label class="ribbon-color-label">Accent <input type="color" id="theme-accent" value="#e94560"></label>
+            <label class="ribbon-color-label">Secondary <input type="color" id="theme-secondary" value="#533483"></label>
+            <button class="ribbon-btn" id="btn-apply-theme">Apply Theme</button>
+          </div>
+          <div class="ribbon-separator"></div>
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">CSS</div>
+            <button class="ribbon-btn" id="btn-global-css">Edit Global CSS</button>
+          </div>
+        </div>
+
+        <!-- Transitions Tab -->
+        <div class="ribbon-panel" data-tab="transitions">
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">Transition</div>
+            <select id="transition-type" class="ribbon-select">
+              <option value="">None</option>
+              <option value="fade">Fade</option>
+              <option value="slide-left">Slide Left</option>
+              <option value="slide-right">Slide Right</option>
+            </select>
+            <button class="ribbon-btn" id="btn-apply-transition-all">Apply to All</button>
+          </div>
+        </div>
+
+        <!-- View Tab -->
+        <div class="ribbon-panel" data-tab="view">
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">Preview</div>
+            <button class="ribbon-btn" id="btn-present" title="Present (F5)">Present</button>
+            <button class="ribbon-btn" id="btn-presenter-mode" title="Presenter Mode (F6)">Presenter Mode</button>
+            <button class="ribbon-btn" id="btn-preview-slide">Preview Slide</button>
+          </div>
+          <div class="ribbon-separator"></div>
+          <div class="ribbon-group">
+            <div class="ribbon-group-label">Editor</div>
+            <button class="ribbon-btn" id="btn-mode-code">Code</button>
+            <button class="ribbon-btn active" id="btn-mode-split">Split</button>
+            <button class="ribbon-btn" id="btn-mode-visual">Preview</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor Workspace -->
+    <div class="editor-workspace">
+      <!-- Slide Panel (left) -->
+      <div class="slide-panel">
+        <div class="slide-panel-header">Slides</div>
+        <div class="slide-list" id="slide-list"></div>
+      </div>
+
+      <!-- Main Editor Area -->
+      <div class="editor-main">
+        <div class="editor-content" id="editor-content">
+          <div class="structured-editor" id="structured-editor">
+            <div class="struct-tabs">
+              <button class="struct-tab active" data-pane="body">Body</button>
+              <button class="struct-tab" data-pane="css">CSS</button>
+              <button class="struct-tab" data-pane="js">JS</button>
+              <button class="struct-tab raw-tab" data-pane="raw">Raw HTML</button>
+            </div>
+            <div class="struct-pane active" id="pane-body">
+              <textarea id="editor-body" spellcheck="false"></textarea>
+            </div>
+            <div class="struct-pane" id="pane-css">
+              <textarea id="editor-css" spellcheck="false"></textarea>
+            </div>
+            <div class="struct-pane" id="pane-js">
+              <textarea id="editor-js" spellcheck="false"></textarea>
+            </div>
+            <div class="struct-pane" id="pane-raw">
+              <textarea id="code-editor" spellcheck="false"></textarea>
+            </div>
+          </div>
+          <div class="split-divider" id="split-divider"></div>
+          <iframe id="visual-preview" class="hidden" sandbox="allow-scripts"></iframe>
+        </div>
+      </div>
+
+      <!-- Properties Panel (right) -->
+      <div class="properties-panel">
+        <div class="properties-header">Properties</div>
+        <div class="properties-body">
+          <label for="slide-title">Title</label>
+          <input type="text" id="slide-title" placeholder="Slide title">
+          <label for="slide-notes">Notes</label>
+          <textarea id="slide-notes" placeholder="Speaker notes..." rows="4"></textarea>
+          <label for="slide-transition">Transition</label>
+          <select id="slide-transition">
+            <option value="">None</option>
+            <option value="fade">Fade</option>
+            <option value="slide-left">Slide Left</option>
+            <option value="slide-right">Slide Right</option>
+          </select>
+
+          <div class="properties-divider"></div>
+          <div class="properties-header">Preview</div>
+          <div class="preview-container">
+            <iframe id="slide-preview" sandbox="allow-scripts"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span id="status-slide">Slide 1 / 1</span>
+      <span id="status-saved" class="saved">Saved</span>
+      <span id="status-mode">HTML</span>
+    </div>
+  </div>
+
+  <!-- Global CSS Modal -->
+  <div id="global-css-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>Global CSS</h3>
+        <button class="modal-close" id="global-css-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <textarea id="global-css-editor" spellcheck="false"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="global-css-save">Save</button>
+        <button class="btn-secondary" id="global-css-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Presentation Modal -->
+  <div id="new-presentation-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>New Presentation</h3>
+        <button class="modal-close" id="new-pres-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="new-pres-title">Title</label>
+        <input type="text" id="new-pres-title" placeholder="My Presentation" value="New Presentation">
+        <label for="new-pres-author">Author</label>
+        <input type="text" id="new-pres-author" placeholder="Your name">
+        <label>Template</label>
+        <div class="template-grid" id="template-grid"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="new-pres-create">Create</button>
+        <button class="btn-secondary" id="new-pres-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Slide Modal -->
+  <div id="new-slide-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add Slide</h3>
+        <button class="modal-close" id="new-slide-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label>Choose a template:</label>
+        <div class="template-grid" id="slide-template-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save Confirmation Modal -->
+  <div id="save-confirm-modal" class="modal hidden">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h3>Unsaved Changes</h3>
+      </div>
+      <div class="modal-body">
+        <p style="color: #ccd; font-size: 0.9rem;">You have unsaved changes. What would you like to do?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="save-confirm-save">Save</button>
+        <button class="btn-secondary btn-danger" id="save-confirm-discard">Discard</button>
+        <button class="btn-secondary" id="save-confirm-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="vendor/codemirror/codemirror.min.js"></script>
+  <script src="vendor/codemirror/mode/xml.js"></script>
+  <script src="vendor/codemirror/mode/javascript.js"></script>
+  <script src="vendor/codemirror/mode/css.js"></script>
+  <script src="vendor/codemirror/mode/htmlmixed.js"></script>
+  <script src="vendor/codemirror/addon/hint/show-hint.min.js"></script>
+  <script src="vendor/codemirror/addon/hint/xml-hint.min.js"></script>
+  <script src="vendor/codemirror/addon/hint/html-hint.min.js"></script>
+  <script src="vendor/codemirror/addon/hint/css-hint.min.js"></script>
+  <script src="vendor/codemirror/addon/hint/javascript-hint.min.js"></script>
+  <script src="vendor/html2canvas.min.js"></script>
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="vendor/pptxgenjs.bundle.min.js"></script>
+  <script src="templates.js"></script>
+  <script src="editor.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

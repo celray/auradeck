@@ -1,0 +1,84 @@
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0f0c29;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #fff;
+}
+
+/* Viewport */
+#viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#viewport.hidden {
+  display: none;
+}
+
+#viewport iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+#viewport iframe.active {
+  opacity: 1;
+  z-index: 1;
+}
+
+/* Edit pen icon overlay (viewer mode) */
+#pen-icon {
+  position: absolute;
+  bottom: 16px;
+  left: 24px;
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(233, 69, 96, 0.85);
+  border-radius: 50%;
+  cursor: pointer;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.4s ease, transform 0.2s ease;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+#pen-icon.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#pen-icon:hover {
+  transform: scale(1.1);
+  background: rgba(233, 69, 96, 1);
+}
+
+/* Slide counter overlay */
+#counter {
+  position: absolute;
+  bottom: 16px;
+  right: 24px;
+  z-index: 10;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+  user-select: none;
+}

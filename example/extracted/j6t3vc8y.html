@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slide - Features</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0f0c29; }
+  .slide {
+    width: 100vw; height: 100vh;
+    overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif;
+    color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .tag { font-size: 1.6vmin; text-transform: uppercase; letter-spacing: 0.15em; color: #e94560; margin-bottom: 1.5vmin; }
+  h2 { font-size: 3.4vmin; font-weight: 700; margin-bottom: 5vmin; }
+  .cards { display: flex; gap: 4vmin; }
+  .card { background: #16213e; border-radius: 1.5vmin; padding: 4vmin 3vmin; width: 22vmin; text-align: center; border: 1px solid #0f3460; transition: transform 0.3s, box-shadow 0.3s; }
+  .card:hover { transform: translateY(-0.8vmin); box-shadow: 0 1vmin 3vmin rgba(0,0,0,0.4); }
+  .card img { width: 8vmin; height: 8vmin; margin-bottom: 2vmin; }
+  .card h3 { font-size: 2vmin; margin-bottom: 1vmin; }
+  .card p { font-size: 1.5vmin; color: #aaa; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="tag">Why AuraDeck</div>
+  <h2>Core Features</h2>
+  <div class="cards">
+    <div class="card">
+      <img src="./images/feature-speed.svg" alt="Speed icon">
+      <h3>Blazing Fast</h3>
+      <p>Sub-millisecond slide transitions with zero layout reflow.</p>
+    </div>
+    <div class="card">
+      <img src="./images/feature-modular.svg" alt="Modular icon">
+      <h3>Modular</h3>
+      <p>Each slide is an independent unit. Mix, reorder, and share freely.</p>
+    </div>
+    <div class="card">
+      <img src="./images/feature-offline.svg" alt="Offline icon">
+      <h3>Offline Ready</h3>
+      <p>No server, no CDN, no internet. Works anywhere, always.</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

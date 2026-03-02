@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#1e1848"/>
+      <stop offset="100%" stop-color="#0f0c29"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e94560"/>
+      <stop offset="100%" stop-color="#c23049"/>
+    </linearGradient>
+    <linearGradient id="purple" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#533483"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern for texture -->
+  <line x1="0" y1="170" x2="512" y2="170" stroke="#533483" stroke-width="0.5" opacity="0.15"/>
+  <line x1="0" y1="342" x2="512" y2="342" stroke="#533483" stroke-width="0.5" opacity="0.15"/>
+  <line x1="170" y1="0" x2="170" y2="512" stroke="#533483" stroke-width="0.5" opacity="0.15"/>
+  <line x1="342" y1="0" x2="342" y2="512" stroke="#533483" stroke-width="0.5" opacity="0.15"/>
+
+  <!-- Back slide (offset, slightly rotated) -->
+  <g transform="translate(256,240) rotate(-4) translate(-256,-240)" filter="url(#shadow)">
+    <rect x="96" y="128" width="320" height="200" rx="12" fill="#1a1545" stroke="#533483" stroke-width="2.5"/>
+    <!-- Faint content lines -->
+    <rect x="128" y="168" width="140" height="8" rx="4" fill="#533483" opacity="0.4"/>
+    <rect x="128" y="188" width="100" height="6" rx="3" fill="#533483" opacity="0.25"/>
+    <rect x="128" y="204" width="120" height="6" rx="3" fill="#533483" opacity="0.25"/>
+  </g>
+
+  <!-- Front slide -->
+  <g filter="url(#shadow)">
+    <rect x="112" y="148" width="320" height="200" rx="12" fill="#16213e" stroke="#e94560" stroke-width="2.5"/>
+    <!-- Title bar accent -->
+    <rect x="112" y="148" width="320" height="40" rx="12" fill="url(#accent)" opacity="0.15"/>
+    <rect x="112" y="176" width="320" height="1" fill="#e94560" opacity="0.3"/>
+    <!-- Content placeholders -->
+    <rect x="144" y="162" width="96" height="8" rx="4" fill="#e94560" opacity="0.7"/>
+    <rect x="144" y="200" width="200" height="8" rx="4" fill="#8899aa" opacity="0.5"/>
+    <rect x="144" y="220" width="160" height="6" rx="3" fill="#8899aa" opacity="0.3"/>
+    <rect x="144" y="238" width="180" height="6" rx="3" fill="#8899aa" opacity="0.3"/>
+    <!-- Image placeholder -->
+    <rect x="336" y="196" width="72" height="52" rx="6" fill="#533483" opacity="0.35"/>
+    <polygon points="352,230 372,214 392,230" fill="#7c3aed" opacity="0.4"/>
+    <circle cx="384" cy="210" r="6" fill="#e94560" opacity="0.4"/>
+    <!-- Bottom bar -->
+    <rect x="144" y="308" width="40" height="4" rx="2" fill="#533483" opacity="0.4"/>
+    <circle cx="408" cy="310" r="8" fill="url(#accent)" opacity="0.5"/>
+    <polygon points="405,306 413,310 405,314" fill="#fff" opacity="0.8"/>
+  </g>
+
+  <!-- "A" letterform as a subtle brand mark -->
+  <g transform="translate(256, 410)" filter="url(#glow)">
+    <text text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-weight="800" font-size="72" fill="url(#accent)" opacity="0.9">A</text>
+  </g>
+</svg>

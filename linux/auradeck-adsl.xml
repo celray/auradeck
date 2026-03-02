@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-auradeck-slides">
+    <comment>AuraDeck Slide Deck</comment>
+    <glob pattern="*.adsl"/>
+    <sub-class-of type="application/zip"/>
+    <icon name="application-x-auradeck-slides"/>
+  </mime-type>
+</mime-info>
