@@ -77,27 +77,181 @@ This installs the binary to `~/.local/bin/`, registers the `.adsl` MIME type, an
 
 ## Presentation Format
 
-AuraDeck supports two formats:
+AuraDeck supports two equivalent formats:
 
 - **Folder** — a directory with `manifest.json`, slide HTML files, and an `images/` folder
-- **`.adsl` archive** — a zip file containing the same structure
+- **`.adsl` archive** — a zip file containing the exact same structure
 
-### Folder structure
+### `.adsl` File Format
 
-```
-my-presentation/
-  manifest.json        # slide order, metadata, author, theme
-  a1b2c3d4.html        # slide files (random alphanumeric names)
-  e5f6g7h8.html
-  images/              # image assets referenced by slides
-    hero-bg.svg
-    chart.png
-  global.css           # optional shared CSS injected into all slides
+An `.adsl` file is a standard **ZIP archive** (MIME type `application/x-auradeck-slides`) with the extension `.adsl`. You can create one with any zip tool:
+
+```bash
+cd my-presentation/
+zip -r ../my-deck.adsl manifest.json *.html images/
 ```
 
-Each slide is a self-contained HTML file with inline CSS and JS, rendered at 16:9 aspect ratio.
+Or rename any `.adsl` to `.zip` to inspect/extract it.
 
-See `example/extracted/` for a sample deck, or `example/example.adsl` for the archived version.
+### Directory Structure
+
+```
+my-presentation/          # or the root of the .adsl zip
+├── manifest.json         # REQUIRED — slide order, metadata, theme
+├── a1b2c3d4.html         # slide files
+├── e5f6g7h8.html
+├── images/               # image assets referenced by slides
+│   ├── hero-bg.svg
+│   └── chart.png
+└── global.css            # optional — shared CSS injected into all slides
+```
+
+### `manifest.json` Specification
+
+The manifest is the only required metadata file. It controls slide order, presentation metadata, and theming.
+
+#### Full Example
+
+```json
+{
+  "version": "1.0.0",
+  "title": "My Presentation",
+  "author": {
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "url": "https://example.com"
+  },
+  "created": "2026-03-02T00:00:00Z",
+  "modified": "2026-03-02T12:30:00Z",
+  "description": "A presentation about interesting things.",
+  "tags": ["demo", "tutorial"],
+  "aspect_ratio": "auto",
+  "slides": [
+    {
+      "index": 0,
+      "file": "a1b2c3d4.html",
+      "title": "Title Slide",
+      "notes": "Welcome the audience. Introduce the topic.",
+      "transition": "fade",
+      "duration_seconds": 30.0
+    },
+    {
+      "index": 1,
+      "file": "e5f6g7h8.html",
+      "title": "Overview",
+      "notes": "Explain the agenda.",
+      "transition": "slide-left"
+    }
+  ],
+  "theme": {
+    "background": "#0f0c29",
+    "foreground": "#ffffff",
+    "accent": "#e94560",
+    "secondary": "#533483"
+  },
+  "images": [
+    "images/hero-bg.svg",
+    "images/chart.png"
+  ],
+  "global_css": "global.css"
+}
+```
+
+#### Field Reference
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `version` | string | No | `"1.0.0"` | Manifest schema version. Currently `"1.0.0"`. |
+| `title` | string | **Yes** | — | Presentation title. Shown in the title bar and metadata. |
+| `author` | object | **Yes** | — | Author information (see [Author](#author-object)). |
+| `description` | string | **Yes** | — | Short description of the presentation. Can be empty `""`. |
+| `created` | string | No | — | ISO 8601 timestamp of creation (e.g. `"2026-03-02T00:00:00Z"`). |
+| `modified` | string | No | — | ISO 8601 timestamp of last modification. Updated automatically on save. |
+| `tags` | string[] | No | `[]` | Freeform tags for categorisation. |
+| `aspect_ratio` | string | No | — | Slide aspect ratio. `"auto"`, `"16:9"`, or `"4:3"`. When omitted or `"auto"`, slides render at the viewport's natural ratio. |
+| `slides` | array | **Yes** | — | Ordered list of slides (see [Slide Entry](#slide-entry-object)). |
+| `theme` | object | No | — | Presentation-wide colour theme (see [Theme](#theme-object)). |
+| `images` | string[] | No | `[]` | List of image asset paths relative to the manifest root (e.g. `"images/photo.png"`). Informational — images are loaded from slide HTML directly. |
+| `global_css` | string | No | — | Path to a shared CSS file injected into every slide at render time. |
+
+#### Author Object
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | **Yes** | Author's display name. |
+| `email` | string | No | Contact email. |
+| `url` | string | No | Website or profile URL. |
+
+#### Slide Entry Object
+
+Each entry in the `slides` array represents one slide in presentation order.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `file` | string | **Yes** | — | Filename of the slide HTML file, relative to the manifest root (e.g. `"a1b2c3d4.html"`). |
+| `title` | string | **Yes** | — | Human-readable slide title. Shown in the slide panel and presenter view. |
+| `index` | integer | No | — | Display order index (0-based). When present, used for sorting; when omitted, array order is used. |
+| `notes` | string | No | — | Speaker notes displayed in presenter mode. Plain text. |
+| `transition` | string | No | — | Transition effect when entering this slide. Values: `"fade"`, `"slide-left"`, `"slide-right"`, `"none"`. |
+| `duration_seconds` | number | No | — | Suggested duration for this slide in seconds. For pacing guidance in presenter mode. |
+
+#### Theme Object
+
+Optional colour scheme applied to the viewer chrome (not the slides themselves — slides control their own styling via inline CSS).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `background` | string | No | Background colour (CSS value, e.g. `"#0f0c29"`). |
+| `foreground` | string | No | Text colour (CSS value). |
+| `accent` | string | No | Primary accent colour. |
+| `secondary` | string | No | Secondary accent colour. |
+
+### Slide HTML Files
+
+Each slide is a **self-contained HTML document** with inline `<style>` and `<script>` tags. Slides are rendered in an iframe at the presentation's aspect ratio.
+
+**Requirements:**
+- Must be a complete HTML document (`<!DOCTYPE html>`, `<html>`, `<head>`, `<body>`)
+- All CSS must be inline in `<style>` tags (no external stylesheets)
+- All JS must be inline in `<script>` tags (no external scripts)
+- Images should reference `./images/filename.ext` — AuraDeck inlines these as base64 `data:` URIs at load time
+- Use viewport-relative units (`vw`, `vh`, `vmin`, `vmax`) for responsive sizing across display resolutions
+- Set `overflow: hidden` on the slide container to prevent scrollbars
+
+**Minimal slide:**
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>My Slide</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  .slide {
+    width: 100vw; height: 100vh; overflow: hidden;
+    font-family: system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    background: #0a1628; color: #fff;
+  }
+  h1 { font-size: 8vmin; }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <h1>Hello World</h1>
+  </div>
+</body>
+</html>
+```
+
+**Tips:**
+- CSS animations and JS run when the slide is displayed — use this for entrance effects
+- Each slide has its own DOM — no state leaks between slides
+- The full power of HTML/CSS/JS is available: Canvas, SVG, WebGL, CSS animations, etc.
+
+See `example/extracted/` for a complete sample deck, or `example/example.adsl` for the archived version.
 
 ## File Structure
 
