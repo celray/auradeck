@@ -60,7 +60,11 @@ if [ -f "$ICONS_DIR/icon.svg" ]; then
 fi
 
 echo "Installing desktop entry..."
-xdg-desktop-menu install "$SCRIPT_DIR/celray-auradeck.desktop"
+# Write desktop entry with absolute path to binary (in case ~/.local/bin is not in PATH)
+DESKTOP_TEMP="/tmp/celray-auradeck.desktop"
+sed "s|^Exec=auradeck |Exec=$BIN_DIR/auradeck |" "$SCRIPT_DIR/celray-auradeck.desktop" > "$DESKTOP_TEMP"
+xdg-desktop-menu install "$DESKTOP_TEMP"
+rm -f "$DESKTOP_TEMP"
 
 echo "Updating caches..."
 update-mime-database "$HOME/.local/share/mime" 2>/dev/null || true
