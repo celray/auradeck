@@ -840,6 +840,11 @@ fn save_slide(
     // Persist manifest
     save_manifest_to_source(source, manifest)?;
 
+    // For zip sources, flush to disk so changes aren't lost
+    if let PresentationSource::Zip { path, files } = source {
+        rebuild_adsl(path, files)?;
+    }
+
     Ok(())
 }
 
