@@ -1,6 +1,7 @@
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWindow } = window.__TAURI__.window;
 
+const welcomeDiv = document.getElementById("welcome");
 const viewport = document.getElementById("viewport");
 const editorDiv = document.getElementById("editor");
 const frameA = document.getElementById("frame-a");
@@ -12,7 +13,7 @@ let totalSlides = 0;
 let activeFrame = frameA;
 let bufferFrame = frameB;
 let isTransitioning = false;
-let currentMode = "editor"; // "viewer" | "editor"
+let currentMode = "welcome"; // "welcome" | "viewer" | "editor"
 let loadedPath = null; // Track the currently loaded presentation path
 
 function log(...args) {
@@ -22,6 +23,7 @@ function log(...args) {
 function logError(...args) {
   console.error("[auradeck]", ...args);
 }
+
 
 // --- Simple toast for main.js (independent of Editor) ---
 function showToast(message, type) {
@@ -40,8 +42,22 @@ function showToast(message, type) {
 
 // --- Mode switching ---
 
+function hideWelcome() {
+  welcomeDiv.classList.add("hidden");
+}
+
+function showWelcome() {
+  currentMode = "welcome";
+  welcomeDiv.classList.remove("hidden");
+  viewport.classList.add("hidden");
+  editorDiv.classList.add("hidden");
+  hidePenIcon();
+  getCurrentWindow().setTitle("AuraDeck").catch(() => {});
+}
+
 function showViewer() {
   currentMode = "viewer";
+  hideWelcome();
   viewport.classList.remove("hidden");
   editorDiv.classList.add("hidden");
   initPenIcon();
@@ -49,24 +65,21 @@ function showViewer() {
 
 function showEditor() {
   currentMode = "editor";
+  hideWelcome();
   viewport.classList.add("hidden");
   editorDiv.classList.remove("hidden");
   hidePenIcon();
 }
 
-// Global function: create new scratch and open editor
+// Global function: return to welcome screen
 window.returnToWelcome = async function () {
   try {
     await invoke("cleanup_scratch");
-    const info = await invoke("create_scratch_presentation");
     loadedPath = null;
-    showEditor();
-    if (typeof Editor !== "undefined" && Editor && Editor.openEditor) {
-      await Editor.openEditor(info);
-    }
-    getCurrentWindow().setTitle("AuraDeck").catch(() => {});
+    showWelcome();
+    await populateRecentFiles();
   } catch (e) {
-    logError("returnToWelcome (scratch) failed:", e);
+    logError("returnToWelcome failed:", e);
   }
 };
 
@@ -202,6 +215,85 @@ function onViewerMouseMove() {
   }, 5000);
 }
 
+// --- Welcome screen ---
+
+function escapeHtml(str) {
+  const d = document.createElement("div");
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function formatRelativeTime(iso) {
+  try {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    const hrs = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    if (hrs < 24) return `${hrs}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return new Date(iso).toLocaleDateString();
+  } catch {
+    return "";
+  }
+}
+
+async function populateRecentFiles() {
+  try {
+    const entries = await invoke("get_recent_files");
+    const listEl = document.getElementById("welcome-recent-list");
+    const emptyEl = document.getElementById("welcome-recent-empty");
+    listEl.innerHTML = "";
+
+    if (!entries || entries.length === 0) {
+      emptyEl.classList.remove("hidden");
+      return;
+    }
+    emptyEl.classList.add("hidden");
+
+    for (const entry of entries) {
+      const item = document.createElement("div");
+      item.className = "welcome-recent-item";
+      item.innerHTML = `
+        <div class="welcome-recent-item-info">
+          <div class="welcome-recent-item-title">${escapeHtml(entry.title)}</div>
+          <div class="welcome-recent-item-path">${escapeHtml(entry.path)}</div>
+        </div>
+        <div class="welcome-recent-item-time">${formatRelativeTime(entry.last_opened)}</div>
+      `;
+      item.addEventListener("click", () => {
+        loadPresentationForEditing(entry.path);
+      });
+      listEl.appendChild(item);
+    }
+  } catch (e) {
+    logError("populateRecentFiles failed:", e);
+  }
+}
+
+function initWelcomeScreen() {
+  document.getElementById("welcome-new")?.addEventListener("click", async () => {
+    try {
+      const info = await invoke("create_scratch_presentation");
+      showEditor();
+      if (typeof Editor !== "undefined" && Editor && Editor.openEditor) {
+        await Editor.openEditor(info);
+      }
+    } catch (e) {
+      logError("welcome new failed:", e);
+    }
+  });
+
+  document.getElementById("welcome-open-adsl")?.addEventListener("click", () => {
+    editFile();
+  });
+
+  document.getElementById("welcome-open-folder")?.addEventListener("click", () => {
+    editFolder();
+  });
+}
+
 // --- File open handlers ---
 
 async function editFile() {
@@ -244,6 +336,11 @@ async function loadPresentationForEditing(folder) {
 
     showEditor();
 
+    // Record in recent files (fire-and-forget)
+    invoke("add_recent_file", { path: folder, title: info.title }).catch((e) => {
+      logError("Failed to record recent file:", e);
+    });
+
     if (typeof Editor !== "undefined" && Editor && Editor.openEditor) {
       await Editor.openEditor(info);
     } else {
@@ -281,6 +378,22 @@ async function showSlide(index) {
 
       // Notify the slide it is now visible so JS animations can start.
       try { bufferFrame.contentWindow.postMessage({ type: "auradeck-visible" }, "*"); } catch (_) {}
+
+      // Forward keyboard and mouse events from iframe to parent
+      try {
+        const iframeDoc = bufferFrame.contentDocument || bufferFrame.contentWindow.document;
+        if (iframeDoc) {
+          iframeDoc.addEventListener("keydown", (ev) => {
+            document.dispatchEvent(new KeyboardEvent("keydown", {
+              key: ev.key, code: ev.code, keyCode: ev.keyCode,
+              ctrlKey: ev.ctrlKey, shiftKey: ev.shiftKey, altKey: ev.altKey, metaKey: ev.metaKey,
+            }));
+          });
+          iframeDoc.addEventListener("mousemove", () => {
+            onViewerMouseMove();
+          });
+        }
+      } catch (_) {}
 
       try {
         const appWindow = getCurrentWindow();
@@ -385,6 +498,8 @@ document.addEventListener("keydown", async (e) => {
 
 (async () => {
   try {
+    initWelcomeScreen();
+
     log("checking for initial path...");
     const initialPath = await invoke("get_initial_path");
     log("initial path:", initialPath);
@@ -392,13 +507,9 @@ document.addEventListener("keydown", async (e) => {
       // CLI arg: open directly in editor
       await loadPresentationForEditing(initialPath);
     } else {
-      // No arg: create scratch presentation and open editor
-      const info = await invoke("create_scratch_presentation");
-      log("scratch presentation created:", info);
-      showEditor();
-      if (typeof Editor !== "undefined" && Editor && Editor.openEditor) {
-        await Editor.openEditor(info);
-      }
+      // No arg: show welcome screen
+      showWelcome();
+      await populateRecentFiles();
     }
   } catch (e) {
     logError("startup failed:", e);

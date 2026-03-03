@@ -38,6 +38,7 @@ html, body {
 #viewport iframe.active {
   opacity: 1;
   z-index: 1;
+  pointer-events: auto;
 }
 
 /* Edit pen icon overlay (viewer mode) */

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
+use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
 /// Debug logging macro — only prints in debug builds
@@ -67,6 +68,13 @@ struct AppState {
     source: Option<PresentationSource>,
     manifest: Option<Manifest>,
     is_scratch: bool,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+struct RecentEntry {
+    path: String,
+    title: String,
+    last_opened: String,
 }
 
 impl Default for AppState {
@@ -274,6 +282,48 @@ fn save_manifest_to_source(
     write_file_string(source, "manifest.json", &json)
 }
 
+// ---------------------------------------------------------------------------
+// Recent files persistence
+// ---------------------------------------------------------------------------
+
+fn recent_files_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to resolve app data dir: {}", e))?;
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("Failed to create app data dir: {}", e))?;
+    Ok(dir.join("recent_files.json"))
+}
+
+fn load_recent_entries(app: &tauri::AppHandle) -> Vec<RecentEntry> {
+    let path = match recent_files_path(app) {
+        Ok(p) => p,
+        Err(_) => return vec![],
+    };
+    let bytes = match std::fs::read(&path) {
+        Ok(b) => b,
+        Err(_) => return vec![],
+    };
+    serde_json::from_slice(&bytes).unwrap_or_default()
+}
+
+fn save_recent_entries(app: &tauri::AppHandle, entries: &[RecentEntry]) -> Result<(), String> {
+    let path = recent_files_path(app)?;
+    let json =
+        serde_json::to_string_pretty(entries).map_err(|e| format!("Serialize error: {}", e))?;
+    std::fs::write(&path, json).map_err(|e| format!("Failed to write recent files: {}", e))
+}
+
+fn path_still_exists(path: &str) -> bool {
+    let p = std::path::Path::new(path);
+    if p.is_dir() {
+        p.join("manifest.json").exists()
+    } else {
+        p.exists()
+    }
+}
+
 /// Rebuild a .adsl zip archive from in-memory files
 fn rebuild_adsl(path: &PathBuf, files: &HashMap<String, Vec<u8>>) -> Result<(), String> {
     let file = std::fs::File::create(path)
@@ -450,7 +500,8 @@ fn mime_from_ext(ext: &str) -> &'static str {
 }
 
 fn inline_images(html: &str, source: &PresentationSource) -> String {
-    let mut result = html.to_string();
+    // Normalize bare images/ refs to ./images/ so the loop below catches both
+    let mut result = html.replace("src=\"images/", "src=\"./images/");
     let pattern = "src=\"./images/";
 
     while let Some(start) = result.find(pattern) {
@@ -1527,6 +1578,44 @@ async fn open_folder_dialog(app: tauri::AppHandle) -> Result<Option<String>, Str
 }
 
 // ---------------------------------------------------------------------------
+// Tauri commands — Recent files
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+fn get_recent_files(app: tauri::AppHandle) -> Result<Vec<RecentEntry>, String> {
+    let mut entries = load_recent_entries(&app);
+    let before = entries.len();
+    entries.retain(|e| path_still_exists(&e.path));
+    if entries.len() != before {
+        let _ = save_recent_entries(&app, &entries);
+    }
+    Ok(entries)
+}
+
+#[tauri::command]
+fn add_recent_file(app: tauri::AppHandle, path: String, title: String) -> Result<(), String> {
+    let mut entries = load_recent_entries(&app);
+    entries.retain(|e| e.path != path);
+    entries.insert(
+        0,
+        RecentEntry {
+            path,
+            title,
+            last_opened: chrono::Utc::now().to_rfc3339(),
+        },
+    );
+    entries.truncate(15);
+    save_recent_entries(&app, &entries)
+}
+
+#[tauri::command]
+fn remove_recent_file(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let mut entries = load_recent_entries(&app);
+    entries.retain(|e| e.path != path);
+    save_recent_entries(&app, &entries)
+}
+
+// ---------------------------------------------------------------------------
 // App entry point
 // ---------------------------------------------------------------------------
 
@@ -1571,6 +1660,10 @@ pub fn run() {
             inline_slide_images,
             // Export
             save_export_file,
+            // Recent files
+            get_recent_files,
+            add_recent_file,
+            remove_recent_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running AuraDeck");

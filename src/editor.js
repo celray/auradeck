@@ -29,6 +29,8 @@ const Editor = (() => {
     return document.getElementById(id);
   }
 
+
+
   // --- Logging ---
   function log(...args) {
     console.log("[editor]", ...args);
@@ -425,7 +427,6 @@ ${body}${js.trim() ? `\n<script>\n${js}\n</script>` : ""}
           const thumb = document.createElement("div");
           thumb.className = "slide-item-thumbnail";
           const iframe = document.createElement("iframe");
-          iframe.sandbox = "";
           try {
             const slideHtml = await invoke("get_slide", { index: i });
             iframe.srcdoc = slideHtml;

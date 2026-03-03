@@ -10,10 +10,39 @@
   <link rel="stylesheet" href="editor.css">
 </head>
 <body tabindex="-1">
+  <!-- Welcome Screen -->
+  <div id="welcome" class="hidden">
+    <div class="welcome-container">
+      <div class="welcome-header">
+        <h1 class="welcome-logo">AuraDeck</h1>
+        <p class="welcome-subtitle">Presentation Editor</p>
+      </div>
+      <div class="welcome-actions">
+        <button class="welcome-action-btn" id="welcome-new">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="welcome-action-label">New Presentation</span>
+        </button>
+        <button class="welcome-action-btn" id="welcome-open-adsl">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+          <span class="welcome-action-label">Open .adsl</span>
+        </button>
+        <button class="welcome-action-btn" id="welcome-open-folder">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+          <span class="welcome-action-label">Open Folder</span>
+        </button>
+      </div>
+      <div class="welcome-recent" id="welcome-recent">
+        <h2 class="welcome-recent-title">Recent Presentations</h2>
+        <div class="welcome-recent-list" id="welcome-recent-list"></div>
+        <p class="welcome-recent-empty hidden" id="welcome-recent-empty">No recent presentations</p>
+      </div>
+    </div>
+  </div>
+
   <!-- Viewer -->
   <div id="viewport" class="hidden">
-    <iframe id="frame-a" sandbox="allow-scripts"></iframe>
-    <iframe id="frame-b" sandbox="allow-scripts"></iframe>
+    <iframe id="frame-a"></iframe>
+    <iframe id="frame-b"></iframe>
     <div id="counter"></div>
   </div>
 
@@ -188,7 +217,7 @@
             </div>
           </div>
           <div class="split-divider" id="split-divider"></div>
-          <iframe id="visual-preview" class="hidden" sandbox="allow-scripts"></iframe>
+          <iframe id="visual-preview" class="hidden"></iframe>
         </div>
       </div>
 
@@ -211,7 +240,7 @@
           <div class="properties-divider"></div>
           <div class="properties-header">Preview</div>
           <div class="preview-container">
-            <iframe id="slide-preview" sandbox="allow-scripts"></iframe>
+            <iframe id="slide-preview"></iframe>
           </div>
         </div>
       </div>
