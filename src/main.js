@@ -279,6 +279,9 @@ async function showSlide(index) {
       bufferFrame.classList.add("active");
       activeFrame.classList.remove("active");
 
+      // Notify the slide it is now visible so JS animations can start.
+      try { bufferFrame.contentWindow.postMessage({ type: "auradeck-visible" }, "*"); } catch (_) {}
+
       try {
         const appWindow = getCurrentWindow();
         await appWindow.setTitle(

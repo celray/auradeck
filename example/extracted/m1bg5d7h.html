@@ -44,21 +44,51 @@
 (function() {
   function animateCounter(el, target, suffix) {
     suffix = suffix || '';
-    var duration = 1500, start = performance.now();
-    function tick(now) {
-      var t = Math.min((now - start) / duration, 1);
-      t = 1 - Math.pow(1 - t, 3); 
+    var duration = 1500, start = Date.now();
+    var id = setInterval(function() {
+      var t = Math.min((Date.now() - start) / duration, 1);
+      t = 1 - Math.pow(1 - t, 3);
       el.textContent = Math.floor(t * target).toLocaleString() + suffix;
-      if (t < 1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
+      if (t >= 1) clearInterval(id);
+    }, 16);
   }
+
+  var started = false;
+  function startCounters() {
+    if (started) return;
+    started = true;
+    animateCounter(document.getElementById('statUsers'), 12400, '+');
+    animateCounter(document.getElementById('statDecks'), 58000, '+');
+    animateCounter(document.getElementById('statStars'), 3200, '');
+  }
+
+  // Primary: watch the parent iframe element for the 'active' class.
+  // This works without postMessage and is immune to rAF suppression in hidden frames.
+  try {
+    var fe = window.frameElement;
+    if (fe) {
+      if (fe.classList.contains('active')) {
+        startCounters();
+      } else {
+        var obs = new MutationObserver(function() {
+          if (fe.classList.contains('active')) {
+            obs.disconnect();
+            startCounters();
+          }
+        });
+        obs.observe(fe, { attributes: true, attributeFilter: ['class'] });
+      }
+    }
+  } catch (_) {}
+
+  // Secondary: postMessage from AuraDeck (belt-and-suspenders).
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'auradeck-visible') startCounters();
+  });
+
+  // Fallback: standalone browser viewing.
   window.addEventListener('load', function() {
-    setTimeout(function() {
-      animateCounter(document.getElementById('statUsers'), 12400, '+');
-      animateCounter(document.getElementById('statDecks'), 58000, '+');
-      animateCounter(document.getElementById('statStars'), 3200, '');
-    }, 300);
+    setTimeout(startCounters, 300);
   });
 })();
 </script>
