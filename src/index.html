@@ -82,7 +82,8 @@
           <div class="ribbon-group">
             <div class="ribbon-group-label">Export</div>
             <button class="ribbon-btn" id="btn-file-export-pdf" title="Export as PDF">PDF</button>
-            <button class="ribbon-btn" id="btn-file-export-pptx" title="Export as PowerPoint">PPTX</button>
+            <!-- TODO: Re-enable PPTX export once rendering is fixed -->
+            <!-- <button class="ribbon-btn" id="btn-file-export-pptx" title="Export as PowerPoint">PPTX</button> -->
           </div>
         </div>
 
@@ -320,6 +321,30 @@
         <button class="btn-primary" id="save-confirm-save">Save</button>
         <button class="btn-secondary btn-danger" id="save-confirm-discard">Discard</button>
         <button class="btn-secondary" id="save-confirm-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF Export Modal -->
+  <div id="pdf-export-modal" class="modal hidden">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h3>Export as PDF</h3>
+        <button class="modal-close" id="pdf-export-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="pdf-size-select">Slide Size</label>
+        <select id="pdf-size-select" class="ribbon-select pdf-size-select"></select>
+        <div id="pdf-custom-fields" class="pdf-custom-fields hidden">
+          <label>Width (px)</label>
+          <input type="number" id="pdf-custom-w" value="1920" min="100" max="7680">
+          <label>Height (px)</label>
+          <input type="number" id="pdf-custom-h" value="1080" min="100" max="4320">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="pdf-export-go">Export</button>
+        <button class="btn-secondary" id="pdf-export-cancel">Cancel</button>
       </div>
     </div>
   </div>

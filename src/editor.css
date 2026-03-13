@@ -1115,3 +1115,46 @@
 .btn-danger:hover {
   background: rgba(233, 69, 96, 0.15) !important;
 }
+
+/* -------------------------------------------------------------------
+   PDF Export Modal
+   ------------------------------------------------------------------- */
+
+.pdf-size-select {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  color: #ccd;
+  background: #1a2744;
+  border: 1px solid #2a3a5e;
+  border-radius: 4px;
+  outline: none;
+  margin-bottom: 4px;
+}
+
+.pdf-size-select:focus {
+  border-color: #e94560;
+}
+
+.pdf-custom-fields {
+  margin-top: 8px;
+}
+
+.pdf-custom-fields.hidden {
+  display: none;
+}
+
+.pdf-custom-fields input[type="number"] {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  color: #ccd;
+  background: #1a2744;
+  border: 1px solid #2a3a5e;
+  border-radius: 4px;
+  outline: none;
+}
+
+.pdf-custom-fields input[type="number"]:focus {
+  border-color: #e94560;
+}

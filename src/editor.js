@@ -22,6 +22,17 @@ const Editor = (() => {
   let cmInstances = { body: null, css: null, js: null, raw: null };
   let activePane = "body";
 
+  // PDF export size presets (px for rendering, mm for PDF page)
+  const PDF_SIZES = [
+    { label: "1440p (2560 \u00d7 1440)",  pxW: 2560, pxH: 1440, mmW: 677.333, mmH: 381 },
+    { label: "1080p (1920 \u00d7 1080)",  pxW: 1920, pxH: 1080, mmW: 508,     mmH: 285.75 },
+    { label: "720p (1280 \u00d7 720)",    pxW: 1280, pxH: 720,  mmW: 338.667, mmH: 190.5 },
+    { label: "A4 Landscape",         pxW: 1122, pxH: 794,  mmW: 297,     mmH: 210 },
+    { label: "A4 Portrait",          pxW: 794,  pxH: 1122, mmW: 210,     mmH: 297 },
+    { label: "Letter Landscape",     pxW: 1056, pxH: 816,  mmW: 279.4,   mmH: 215.9 },
+    { label: "Letter Portrait",      pxW: 816,  pxH: 1056, mmW: 215.9,   mmH: 279.4 },
+  ];
+
   // --- DOM refs (lazily cached) ---
   const $ = (id) => document.getElementById(id);
 
@@ -897,8 +908,18 @@ ${body}${js.trim() ? `\n<script>\n${js}\n</script>` : ""}
     });
     el("btn-file-save-adsl")?.addEventListener("click", saveAsAdsl);
     el("btn-file-export-folder")?.addEventListener("click", exportToFolder);
-    el("btn-file-export-pdf")?.addEventListener("click", exportToPdf);
-    el("btn-file-export-pptx")?.addEventListener("click", exportToPptx);
+    el("btn-file-export-pdf")?.addEventListener("click", showPdfExportModal);
+    // TODO: Re-enable PPTX export once rendering is fixed
+    // el("btn-file-export-pptx")?.addEventListener("click", exportToPptx);
+
+    // PDF export modal buttons
+    el("pdf-export-go")?.addEventListener("click", exportToPdf);
+    el("pdf-export-cancel")?.addEventListener("click", () => {
+      el("pdf-export-modal").classList.add("hidden");
+    });
+    el("pdf-export-close")?.addEventListener("click", () => {
+      el("pdf-export-modal").classList.add("hidden");
+    });
   }
 
   // --- Properties panel ---
@@ -1073,41 +1094,67 @@ ${body}${js.trim() ? `\n<script>\n${js}\n</script>` : ""}
   }
 
   // --- Slide rendering helper (shared by PDF & PPTX export) ---
-  async function renderAllSlides(progressCb) {
+  async function renderAllSlides(progressCb, pxW = 1920, pxH = 1080) {
     if (isDirty) await saveCurrentSlide();
     await invoke("save_presentation");
 
     const count = await invoke("get_total_slides");
     const images = [];
 
-    // Use an unsandboxed iframe so we get a proper viewport for vw/vh units
+    // Render at half-size with 2x scale for better text anti-aliasing
+    const renderW = Math.round(pxW / 2);
+    const renderH = Math.round(pxH / 2);
+
+    // Use an offscreen iframe with the render viewport size
     const iframe = document.createElement("iframe");
-    iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:960px;height:540px;border:none;";
+    iframe.style.cssText = `position:fixed;left:-9999px;top:0;width:${renderW}px;height:${renderH}px;border:none;`;
     document.body.appendChild(iframe);
 
     for (let i = 0; i < count; i++) {
       if (progressCb) progressCb(i + 1, count);
       const html = await invoke("get_slide", { index: i });
 
-      // Write the full slide HTML into the iframe document
       const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
       iframeDoc.open();
       iframeDoc.write(html);
       iframeDoc.close();
 
-      // Wait for images and rendering to settle
-      await new Promise((r) => setTimeout(r, 400));
+      // Wait for images to load
+      await new Promise((r) => setTimeout(r, 300));
 
-      // Capture with html2canvas
+      // Finish all running animations so elements reach their end state
+      // (makes fade-in, slide-in etc. fully visible for capture)
+      try {
+        const anims = iframeDoc.getAnimations({ subtree: true });
+        anims.forEach((a) => a.finish());
+      } catch (_) {
+        // Fallback: force via CSS if getAnimations is unavailable
+      }
+      const freezeStyle = iframeDoc.createElement("style");
+      freezeStyle.textContent = `*, *::before, *::after {
+        animation-delay: 0s !important;
+        animation-duration: 0s !important;
+        animation-fill-mode: both !important;
+        transition-duration: 0s !important;
+        transition-delay: 0s !important;
+      }`;
+      iframeDoc.head.appendChild(freezeStyle);
+
+      // Let the browser apply the forced end-states
+      await new Promise((r) => setTimeout(r, 100));
+
+      // Use foreignObjectRendering so the browser engine renders CSS natively
+      // (handles vw/vh/vmin, gradients, backdrop-filter, animations correctly)
       const canvas = await html2canvas(iframeDoc.documentElement, {
-        width: 960,
-        height: 540,
+        width: renderW,
+        height: renderH,
         scale: 2,
         useCORS: true,
-        backgroundColor: "#0f0c29",
+        backgroundColor: null,
         logging: false,
-        windowWidth: 960,
-        windowHeight: 540,
+        windowWidth: renderW,
+        windowHeight: renderH,
+        foreignObjectRendering: true,
       });
 
       images.push(canvas);
@@ -1118,30 +1165,77 @@ ${body}${js.trim() ? `\n<script>\n${js}\n</script>` : ""}
   }
 
   // --- PDF Export ---
+  function showPdfExportModal() {
+    const modal = el("pdf-export-modal");
+    const sizeSelect = el("pdf-size-select");
+    const customFields = el("pdf-custom-fields");
+
+    // Populate size options
+    sizeSelect.innerHTML = "";
+    PDF_SIZES.forEach((s, i) => {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = s.label;
+      sizeSelect.appendChild(opt);
+    });
+    const customOpt = document.createElement("option");
+    customOpt.value = "custom";
+    customOpt.textContent = "Custom";
+    sizeSelect.appendChild(customOpt);
+
+    // Default to 1080p
+    sizeSelect.value = "1";
+    customFields.classList.add("hidden");
+    el("pdf-custom-w").value = "1920";
+    el("pdf-custom-h").value = "1080";
+
+    sizeSelect.onchange = () => {
+      customFields.classList.toggle("hidden", sizeSelect.value !== "custom");
+    };
+
+    modal.classList.remove("hidden");
+  }
+
+  function getPdfExportSize() {
+    const sizeSelect = el("pdf-size-select");
+    if (sizeSelect.value === "custom") {
+      const pxW = parseInt(el("pdf-custom-w").value, 10) || 1920;
+      const pxH = parseInt(el("pdf-custom-h").value, 10) || 1080;
+      // Convert px to mm at 96 DPI (1px = 25.4/96 mm)
+      const mmW = pxW * 25.4 / 96;
+      const mmH = pxH * 25.4 / 96;
+      return { pxW, pxH, mmW, mmH };
+    }
+    return PDF_SIZES[parseInt(sizeSelect.value, 10)];
+  }
+
   async function exportToPdf() {
+    const size = getPdfExportSize();
+    el("pdf-export-modal").classList.add("hidden");
+
     try {
       toast("Rendering slides for PDF...", "info");
 
       const images = await renderAllSlides((current, total) => {
         el("status-saved").textContent = `Exporting ${current}/${total}...`;
         el("status-saved").className = "unsaved";
-      });
+      }, size.pxW, size.pxH);
 
       if (images.length === 0) {
         toast("No slides to export", "error");
         return;
       }
 
-      // 16:9 landscape — use standard presentation dimensions (338.67mm x 190.5mm = 13.333" x 7.5")
-      const W = 338.667;
-      const H = 190.5;
+      const W = size.mmW;
+      const H = size.mmH;
+      const orientation = W >= H ? "landscape" : "portrait";
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: [W, H] });
+      const pdf = new jsPDF({ orientation, unit: "mm", format: [W, H] });
 
       for (let i = 0; i < images.length; i++) {
-        if (i > 0) pdf.addPage([W, H], "landscape");
-        const imgData = images[i].toDataURL("image/png");
-        pdf.addImage(imgData, "PNG", 0, 0, W, H);
+        if (i > 0) pdf.addPage([W, H], orientation);
+        const imgData = images[i].toDataURL("image/jpeg", 0.85);
+        pdf.addImage(imgData, "JPEG", 0, 0, W, H);
       }
 
       const pdfBytes = pdf.output("arraybuffer");
