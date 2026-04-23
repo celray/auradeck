@@ -17,12 +17,55 @@ macro_rules! dbg_log {
     };
 }
 
+/// Warning logging macro — always prints, even in release builds
+macro_rules! warn_log {
+    ($($arg:tt)*) => {
+        eprintln!("[auradeck:warn] {}", format!($($arg)*))
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const GLOBAL_CSS_START: &str = "/* === AURADECK GLOBAL CSS === */";
 const GLOBAL_CSS_END: &str = "/* === END GLOBAL CSS === */";
+
+/// Max import size for a single image (5 MB)
+const MAX_IMAGE_SIZE: usize = 5 * 1024 * 1024;
+
+/// Warn if a single inlined base64 image exceeds this size
+const LARGE_INLINE_IMAGE_WARN: usize = 1_000_000;
+
+/// Allowed image extensions for import
+const ALLOWED_IMAGE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "svg"];
+
+/// Reject any filename that could escape the presentation folder.
+/// Rejects: `..` segments, absolute paths, null bytes, Windows drive letters,
+/// and backslash-separated paths (to be safe cross-platform).
+fn validate_filename(name: &str) -> Result<(), String> {
+    if name.is_empty() {
+        return Err("Empty filename".to_string());
+    }
+    if name.contains('\0') {
+        return Err("Filename contains null byte".to_string());
+    }
+    if name.contains('\\') {
+        return Err(format!("Invalid filename (backslash not allowed): {}", name));
+    }
+    let p = std::path::Path::new(name);
+    if p.is_absolute() {
+        return Err(format!("Absolute paths not allowed: {}", name));
+    }
+    for comp in p.components() {
+        use std::path::Component;
+        match comp {
+            Component::Normal(_) => {}
+            _ => return Err(format!("Invalid path component in filename: {}", name)),
+        }
+    }
+    Ok(())
+}
 
 const DEFAULT_SLIDE_HTML: &str = r#"<!DOCTYPE html>
 <html lang="en">
@@ -190,19 +233,18 @@ struct SlideRawInfo {
 
 /// Read a file from the presentation source
 fn read_file(source: &PresentationSource, name: &str) -> Result<Vec<u8>, String> {
+    let normalized = name.strip_prefix("./").unwrap_or(name);
+    validate_filename(normalized)?;
     match source {
         PresentationSource::Folder(folder) => {
-            let path = folder.join(name);
+            let path = folder.join(normalized);
             std::fs::read(&path).map_err(|e| format!("Failed to read {}: {}", path.display(), e))
         }
-        PresentationSource::Zip { files, .. } => {
-            let normalized = name.strip_prefix("./").unwrap_or(name);
-            files
-                .get(normalized)
-                .or_else(|| files.get(&format!("./{}", normalized)))
-                .cloned()
-                .ok_or_else(|| format!("File not found in archive: {}", name))
-        }
+        PresentationSource::Zip { files, .. } => files
+            .get(normalized)
+            .or_else(|| files.get(&format!("./{}", normalized)))
+            .cloned()
+            .ok_or_else(|| format!("File not found in archive: {}", name)),
     }
 }
 
@@ -212,11 +254,41 @@ fn read_file_string(source: &PresentationSource, name: &str) -> Result<String, S
     String::from_utf8(bytes).map_err(|e| format!("Invalid UTF-8 in {}: {}", name, e))
 }
 
-/// Write a file to the presentation source
-fn write_file(source: &mut PresentationSource, name: &str, data: &[u8]) -> Result<(), String> {
+/// Read an optional CSS file — missing file returns empty string silently,
+/// other errors (permissions, bad UTF-8) are logged so they aren't hidden.
+fn read_optional_css(source: &PresentationSource, name: &str) -> String {
     match source {
         PresentationSource::Folder(folder) => {
             let path = folder.join(name);
+            if !path.exists() {
+                return String::new();
+            }
+        }
+        PresentationSource::Zip { files, .. } => {
+            let normalized = name.strip_prefix("./").unwrap_or(name);
+            if !files.contains_key(normalized)
+                && !files.contains_key(&format!("./{}", normalized))
+            {
+                return String::new();
+            }
+        }
+    }
+    match read_file_string(source, name) {
+        Ok(s) => s,
+        Err(e) => {
+            warn_log!("could not read {}: {}", name, e);
+            String::new()
+        }
+    }
+}
+
+/// Write a file to the presentation source
+fn write_file(source: &mut PresentationSource, name: &str, data: &[u8]) -> Result<(), String> {
+    let normalized = name.strip_prefix("./").unwrap_or(name);
+    validate_filename(normalized)?;
+    match source {
+        PresentationSource::Folder(folder) => {
+            let path = folder.join(normalized);
             if let Some(parent) = path.parent() {
                 std::fs::create_dir_all(parent)
                     .map_err(|e| format!("Failed to create directory: {}", e))?;
@@ -225,7 +297,6 @@ fn write_file(source: &mut PresentationSource, name: &str, data: &[u8]) -> Resul
                 .map_err(|e| format!("Failed to write {}: {}", path.display(), e))
         }
         PresentationSource::Zip { files, .. } => {
-            let normalized = name.strip_prefix("./").unwrap_or(name);
             files.insert(normalized.to_string(), data.to_vec());
             Ok(())
         }
@@ -243,9 +314,11 @@ fn write_file_string(
 
 /// Delete a file from the presentation source
 fn delete_file_from_source(source: &mut PresentationSource, name: &str) -> Result<(), String> {
+    let normalized = name.strip_prefix("./").unwrap_or(name);
+    validate_filename(normalized)?;
     match source {
         PresentationSource::Folder(folder) => {
-            let path = folder.join(name);
+            let path = folder.join(normalized);
             if path.exists() {
                 std::fs::remove_file(&path)
                     .map_err(|e| format!("Failed to delete {}: {}", path.display(), e))
@@ -254,7 +327,6 @@ fn delete_file_from_source(source: &mut PresentationSource, name: &str) -> Resul
             }
         }
         PresentationSource::Zip { files, .. } => {
-            let normalized = name.strip_prefix("./").unwrap_or(name);
             files.remove(normalized);
             files.remove(&format!("./{}", normalized));
             Ok(())
@@ -515,6 +587,14 @@ fn inline_images(html: &str, source: &PresentationSource) -> String {
             let ext = rel_path.rsplit('.').next().unwrap_or("png");
             let mime = mime_from_ext(ext);
             let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+            if b64.len() > LARGE_INLINE_IMAGE_WARN {
+                warn_log!(
+                    "large inlined image {}: {} source bytes, {} base64 bytes (consider resizing)",
+                    rel_path,
+                    bytes.len(),
+                    b64.len()
+                );
+            }
             let data_uri = format!("data:{};base64,{}", mime, b64);
             dbg_log!("inlined image: {} ({} bytes)", rel_path, bytes.len());
             result = format!(
@@ -524,7 +604,7 @@ fn inline_images(html: &str, source: &PresentationSource) -> String {
                 &result[quote_start + quote_end + 1..]
             );
         } else {
-            dbg_log!("failed to read image: {}", rel_path);
+            warn_log!("failed to read image: {}", rel_path);
             // Replace src= with data-missing-img= to avoid re-matching the pattern
             result = format!(
                 "{}data-missing-img=\"{}\"{}",
@@ -557,12 +637,17 @@ fn load_zip(path: &PathBuf) -> Result<HashMap<String, Vec<u8>>, String> {
             continue;
         }
         let name = entry.name().to_string();
+        let normalized = name.strip_prefix("./").unwrap_or(&name).to_string();
+        if let Err(e) = validate_filename(&normalized) {
+            warn_log!("skipping unsafe zip entry {:?}: {}", name, e);
+            continue;
+        }
         let mut buf = Vec::new();
         entry
             .read_to_end(&mut buf)
             .map_err(|e| format!("Failed to read {}: {}", name, e))?;
         dbg_log!("zip entry: {} ({} bytes)", name, buf.len());
-        files.insert(name, buf);
+        files.insert(normalized, buf);
     }
 
     Ok(files)
@@ -791,8 +876,8 @@ fn get_slide_raw(
     let raw_html = read_file_string(source, &slide.file)?;
     let clean_html = strip_global_css(&raw_html);
 
-    // Read global CSS
-    let global_css = read_file_string(source, "global.css").unwrap_or_default();
+    // Read global CSS (optional file — missing is fine, but log other errors)
+    let global_css = read_optional_css(source, "global.css");
 
     Ok(SlideRawInfo {
         html: clean_html,
@@ -823,7 +908,7 @@ fn save_slide(
         .ok_or(format!("Slide index {} out of range", index))?;
 
     // Read global CSS and inject into the HTML
-    let global_css = read_file_string(source, "global.css").unwrap_or_default();
+    let global_css = read_optional_css(source, "global.css");
     let final_html = inject_global_css(&html, &global_css);
 
     // Write slide file
@@ -863,7 +948,7 @@ fn add_slide(
     let filename = generate_slide_filename();
 
     // Inject global CSS
-    let global_css = read_file_string(source, "global.css").unwrap_or_default();
+    let global_css = read_optional_css(source, "global.css");
     let final_html = inject_global_css(&html, &global_css);
 
     // Write slide file
@@ -919,8 +1004,10 @@ fn delete_slide(
 
     let filename = slide.file.clone();
 
-    // Remove slide file
-    let _ = delete_file_from_source(source, &filename);
+    // Remove slide file (log but don't fail if it's already gone)
+    if let Err(e) = delete_file_from_source(source, &filename) {
+        warn_log!("failed to delete slide file {}: {}", filename, e);
+    }
 
     // Remove from manifest
     manifest.slides.remove(index);
@@ -1169,7 +1256,7 @@ fn get_global_css(state: tauri::State<'_, Mutex<AppState>>) -> Result<String, St
         .as_ref()
         .ok_or("No presentation loaded")?;
 
-    Ok(read_file_string(source, "global.css").unwrap_or_default())
+    Ok(read_optional_css(source, "global.css"))
 }
 
 #[tauri::command]
@@ -1282,10 +1369,35 @@ async fn import_image(
             .ok_or("Invalid filename")?
             .to_string();
 
+        let ext = src_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|s| s.to_ascii_lowercase())
+            .ok_or("Image has no extension")?;
+        if !ALLOWED_IMAGE_EXTS.contains(&ext.as_str()) {
+            return Err(format!(
+                "Unsupported image format: .{} (allowed: {})",
+                ext,
+                ALLOWED_IMAGE_EXTS.join(", ")
+            ));
+        }
+
+        let meta = std::fs::metadata(&src_path)
+            .map_err(|e| format!("Failed to stat image: {}", e))?;
+        if meta.len() as usize > MAX_IMAGE_SIZE {
+            return Err(format!(
+                "Image too large: {} bytes (max {} bytes / {} MB)",
+                meta.len(),
+                MAX_IMAGE_SIZE,
+                MAX_IMAGE_SIZE / (1024 * 1024)
+            ));
+        }
+
         let image_data = std::fs::read(&src_path)
             .map_err(|e| format!("Failed to read image: {}", e))?;
 
-        let rel_path = format!("images/{}", file_name);
+        let safe_name = sanitize_image_filename(&file_name, &ext);
+        let rel_path = format!("images/{}", safe_name);
 
         let mut app_state = state.lock().map_err(|e| e.to_string())?;
         let (source, manifest) = app_state.loaded_mut()?;
@@ -1302,6 +1414,27 @@ async fn import_image(
     }
 
     Ok(None)
+}
+
+/// Produce a safe image filename: keep [a-zA-Z0-9._-], replace others with '_'.
+/// Strips leading dots and enforces the given extension.
+fn sanitize_image_filename(original: &str, ext: &str) -> String {
+    let stem_raw: String = std::path::Path::new(original)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("image")
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let stem = stem_raw.trim_start_matches('.').trim_matches('_');
+    let stem = if stem.is_empty() { "image" } else { stem };
+    format!("{}.{}", stem, ext)
 }
 
 // ---------------------------------------------------------------------------
@@ -1452,7 +1585,13 @@ fn cleanup_scratch(state: tauri::State<'_, Mutex<AppState>>) -> Result<(), Strin
         if let Some(PresentationSource::Folder(ref path)) = app_state.source {
             let scratch_path = path.clone();
             dbg_log!("removing scratch folder: {}", scratch_path.display());
-            let _ = std::fs::remove_dir_all(&scratch_path);
+            if let Err(e) = std::fs::remove_dir_all(&scratch_path) {
+                warn_log!(
+                    "failed to remove scratch folder {}: {}",
+                    scratch_path.display(),
+                    e
+                );
+            }
         }
         app_state.is_scratch = false;
     }
